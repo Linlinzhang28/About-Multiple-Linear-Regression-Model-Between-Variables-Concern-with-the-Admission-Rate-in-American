@@ -1,0 +1,273 @@
+---
+title: "final2"
+author: "Linhan"
+date: "22/06/2020"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Import data
+
+```{r}
+data = read.csv(file ='FP_dataset.csv')
+library(dplyr)
+```
+
+##Keep all varibles I will use and create a new data set for all numeric variables. 
+
+```{r pressure, echo=FALSE}
+tidy1 = data[, c(5:31)]#All variables I will use
+tidy2 = data[, c(5,13:31)]#Only numeric variables
+0%in% tidy2$NUMBRANCH
+0%in% tidy2$ADM_RATE
+0%in% tidy2$COSTT4_A
+0%in% tidy2$AVGFACSAL
+0%in% tidy2$PFTFAC
+0%in% tidy2$PCTPELL
+0%in% tidy2$UG25ABV
+0%in% tidy2$INC_PCT_LO
+0%in% tidy2$PAR_ED_PCT_1STGEN
+0%in% tidy2$FEMALE
+0%in% tidy2$MD_FAMINC
+0%in% tidy2$PCT_WHITE
+0%in% tidy2$PCT_BLACK
+0%in% tidy2$PCT_ASIAN
+0%in% tidy2$PCT_HISPANIC
+0%in% tidy2$PCT_BA
+0%in% tidy2$PCT_GRAD_PROF
+0%in% tidy2$PCT_BORN_US
+0%in% tidy2$POVERTY_RATE
+0%in% tidy2$UNEMP_RATE
+
+tidy3 = mutate(tidy1, ADM_RATE = ADM_RATE + 0.00001)
+0%in% tidy3$ADM_RATE
+tidy3 = mutate(tidy3, MD_FAMINC = MD_FAMINC + 0.000001 )
+0%in% tidy3$MD_FAMINC
+```
+##Summary of the statistics
+```{r}
+apply(tidy3, 2, mean)
+apply(tidy3, 2, sd)
+```
+##Take a look at all numeric data
+```{r}
+#Factor variables
+par(mfrow=c(3,4))
+boxplot(tidy3$ADM_RATE, main = 'ADM_RATE')
+boxplot(tidy3$COSTT4_A, main = 'COSTT4_A')
+boxplot(tidy3$AVGFACSAL, main = 'AVGFACSAL')
+boxplot(tidy3$PFTFAC, main = 'PFTFAC')
+boxplot(tidy3$PCTPELL, main = 'PCTPELL')
+boxplot(tidy3$UG25ABV, main = 'UG25ABV')
+boxplot(tidy3$INC_PCT_LO, main = 'INC_PCT_LO')
+boxplot(tidy3$PAR_ED_PCT_1STGEN, main = 'PAR_ED_PCT_1STGEN')
+boxplot(tidy3$FEMALE, main = 'FEMALE')
+boxplot(tidy3$MD_FAMINC, main = 'MD_FAMINC')
+boxplot(tidy3$PCT_WHITE, main = 'PCT_WHITE')
+boxplot(tidy3$PCT_BLACK, main = 'PCT_BLACK')
+boxplot(tidy3$PCT_ASIAN, main = 'PCT_ASIAN')
+boxplot(tidy3$PCT_HISPANIC, main = 'PCT_HISPANIC')
+boxplot(tidy3$PCT_BA, main = 'PCT_BA')
+boxplot(tidy3$PCT_GRAD_PROF, main = 'PCT_GRAD_PROF')
+boxplot(tidy3$PCT_BORN_US, main = 'PCT_BORN_US')
+boxplot(tidy3$POVERTY_RATE, main = 'POVERTY_RATE')
+boxplot(tidy3$UNEMP_RATE, main = 'UNEMP_RATE')
+```
+
+##Look at the correlation in a graph
+```{r}
+par(mfrow=c(1,4))
+pairs(tidy3[,1:8], pch = 19)
+pairs(~ADM_RATE+FEMALE+MD_FAMINC+PCT_WHITE+PCT_BLACK+PCT_ASIAN+PCT_GRAD_PROF+PCT_BORN_US, data = tidy3)
+pairs(~ADM_RATE+POVERTY_RATE+UNEMP_RATE+NUMBRANCH+PCT_HISPANIC+PCT_BA+PCT_GRAD_PROF,data = tidy3)
+pairs(~ADM_RATE+PCT_BORN_US+POVERTY_RATE+UNEMP_RATE+NUMBRANCH, data = tidy3)
+pairs(~ADM_RATE+CONTROL+REGION+HBCU+PBI+TRIBAL+HSI+WOMENONLY, data = tidy3)
+
+```
+##Transformation is needed for the numberic variables(do later)
+```{r}
+library(dplyr)
+train = tidy3[1:1131,]
+test = tidy3[1228:1508,]
+mult = lm(cbind(train$ADM_RATE,train$NUMBRANCH,train$COSTT4_A,train$AVGFACSAL,train$PFTFAC,train$PCTPELL,train$UG25ABV, train$INC_PCT_LO,train$PAR_ED_PCT_1STGEN,train$FEMALE,train$MD_FAMINC,train$PCT_WHITE,train$PCT_BLACK, train$PCT_ASIAN,train$PCT_HISPANIC,train$PCT_BA,train$PCT_GRAD_PROF,train$PCT_BORN_US,train$POVERTY_RATE, train$UNEMP_RATE) ~1)
+library(car)
+tran = powerTransform(mult)
+summary(tran)
+```
+##Fit the full model after transformation(all variables)
+```{r}
+full = lm(I(ADM_RATE^1.39)~CONTROL+REGION+HBCU+PBI+TRIBAL+HSI+WOMENONLY+I(NUMBRANCH^-6.62)+I(COSTT4_A^0.5)+I(AVGFACSAL^0.5)+I(PFTFAC^0.85)+I(PCTPELL^0.5)+I(UG25ABV^0.33)+I(INC_PCT_LO^0.5)+I(PAR_ED_PCT_1STGEN^0.69)+I(FEMALE^1.42)+I(MD_FAMINC^0.15)+I(PCT_WHITE^3.29)+I(PCT_BLACK^0.33)+I(PCT_ASIAN^-0.11)+I(PCT_HISPANIC^0.1)+I(PCT_BA^0.75)+PCT_GRAD_PROF+I(PCT_BORN_US^9.3)+I(POVERTY_RATE^-0.33)+I(UNEMP_RATE^-0.75),data = train)
+summary(full)
+```
+##Select variables Use AIC BIC & Forward backward selection
+```{r}
+library(MASS)
+#BIC_FORWARD
+stepAIC(lm(I(ADM_RATE^1.39)~ 1, data=train), 
+        scope=list(upper=full), 
+        direction = "forward", k=log(nrow(train)))
+```
+##Model1
+```{r}
+model1 = lm(formula = I(ADM_RATE^1.39) ~ I(AVGFACSAL^0.5) + CONTROL + 
+    I(PCT_WHITE^3.29) + I(UG25ABV^0.33) + I(INC_PCT_LO^0.5) + 
+    I(PFTFAC^0.85) + I(FEMALE^1.42), data = train)
+summary(model1)
+```
+##BIC_BACKWARD
+```{r}
+stepAIC(full,
+        scope=list(upper=lm(I(ADM_RATE^1.39) ~ 1, data = train)), 
+        direction = "backward",k=log(nrow(train)))
+```
+##model2
+```{r}
+model2 = lm(formula = I(ADM_RATE^1.39) ~ CONTROL + HSI + I(AVGFACSAL^0.5) + 
+    I(PFTFAC^0.85) + I(UG25ABV^0.33) + I(INC_PCT_LO^0.5) + I(PCT_BLACK^0.33) + 
+    I(PCT_HISPANIC^0.1), data = train)
+summary(model2)
+```
+##AIC
+```{r}
+#AIC_FORWARD
+stepAIC(lm(I(ADM_RATE^1.39)~ 1, data=train), 
+        scope=list(upper=full), 
+        direction = "forward", k=2)
+```
+##model3
+```{r}
+model3 = lm(formula = I(ADM_RATE^1.39) ~ I(AVGFACSAL^0.5) + CONTROL + 
+    I(PCT_WHITE^3.29) + I(UG25ABV^0.33) + I(INC_PCT_LO^0.5) + 
+    I(PFTFAC^0.85) + I(FEMALE^1.42) + I(PCT_HISPANIC^0.1) + I(PCT_BLACK^0.33) + 
+    HSI + I(POVERTY_RATE^-0.33) + I(NUMBRANCH^-6.62) + I(PAR_ED_PCT_1STGEN^0.69) + 
+    TRIBAL, data = train)
+summary(model3)
+vif(model3)
+```
+
+##Influential points
+```{r}
+#MODEL_1
+#Cook distance 
+D = cooks.distance(model1)
+cutoff1 = qf(0.5,8,1131)
+which(D>cutoff1)
+#Dffit
+fits <- dffits(model1)
+cutoff2 <- 2*sqrt(8/1131)
+which(abs(fits)>cutoff2)
+#Dfbeta
+dfb<-dfbetas(model1)
+cutoff3 = 2*sqrt(1131)
+which(abs(dfb[,7])>cutoff3)
+```
+#MODEL_2
+```{r}
+#MODEL_2
+#Cook distance 
+D = cooks.distance(model2)
+cutoff2 = qf(0.5,10,1131)
+which(D>cutoff1)
+#Dffit
+fits <- dffits(model2)
+cutoff2 <- 2*sqrt(10/1131)
+which(abs(fits)>cutoff2)
+#Dfbeta
+dfb<-dfbetas(model2)
+cutoff3 = 2*sqrt(1131)
+which(abs(dfb[,9])>cutoff3)
+```
+##We can see that model2 has more influential points than model1.
+##Look at the residual plots
+```{r}
+#Model1
+par(mfrow=c(3,3))
+plot(rstudent(model1)~I(AVGFACSAL^0.5), xlab="Average Faculty Salary", ylab="standard. residuals", data = train)
+
+plot(rstudent(model1)~CONTROL, xlab="Control of Institution", ylab="standard. residuals",data = train)
+
+plot(rstudent(model1)~I(PCT_WHITE^3.29), xlab="Percentage White", ylab="standard. residuals",data = train)
+
+plot(rstudent(model1)~I(UG25ABV^0.33), xlab="Percentage of undergradueates aged 25 and above", ylab="standard. residuals",data = train)
+
+plot(rstudent(model1)~I(INC_PCT_LO^0.5), xlab="Percentage of aided students", ylab="standard. residuals",data = train)
+
+plot(rstudent(model1)~I(FEMALE^1.42), xlab="Percentage of female students", ylab="standard. residuals",data = train)
+
+plot(rstudent(model1)~I(PFTFAC^0.85), xlab="Proportion of faculty member", ylab="standard. residuals",data = train)
+
+plot(rstudent(model1)~fitted(model1), xlab="Fitted Values", ylab="standard. residuals")
+qqnorm(rstudent(model1))
+```
+##MODEL2 residual plots
+```{r}
+par(mfrow=c(3,3))
+plot(rstudent(model2)~CONTROL, xlab="Control of Institution", ylab="standard. residuals", data = train)
+
+plot(rstudent(model2)~HSI, xlab="Hispanic-serving institution", ylab="standard. residuals",data = train)
+
+plot(rstudent(model2)~I(AVGFACSAL^0.5), xlab="Average Faculty Salary^0.5", ylab="standard. residuals",data = train)
+
+plot(rstudent(model2)~I(UG25ABV^0.33), xlab="Percentage of undergradueates aged 25 and above^0.33", ylab="standard. residuals",data = train)
+
+plot(rstudent(model2)~I(INC_PCT_LO^0.5), xlab="Percentage of aided students^0.5", ylab="standard. residuals",data = train)
+
+plot(rstudent(model2)~I(PCT_HISPANIC^0.1), xlab="Percentage Hispanic students^0.1", ylab="standard. residuals",data = train)
+
+plot(rstudent(model2)~I(PFTFAC^0.85), xlab="Proportion of faculty members^0.85", ylab="standard. residuals",data = train)
+
+plot(rstudent(model2)~I(PCT_BLACK^0.33), xlab="Percentage of black population of students^0.33", ylab="standard. residuals",data = train)
+
+qqPlot(model2)
+```
+
+##Response vs. fitted value
+```{r}
+plot((train$ADM_RATE)^1.39~fitted(model2), xlab="Fitted values", ylab="ADM_RATE^1.39")+
+  abline(a=0,b=1, col = 'red')
+```
+
+##Check if condition holds
+```{r}
+library(alr3)
+plot(I(ADM_RATE^1.39) ~ fitted(model1), xlab="fitted values", ylab="response",data = train)
+
+plot(I(ADM_RATE^1.39) ~ fitted(model2), xlab="fitted values", ylab="response",data = train)
+vif(model1)
+vif(model2)
+```
+##Based on the analysis I want to choose model 2
+
+##Test what about reduce some variables in model 2 based on there residual plots
+```{r}
+par(mfrow=c(3,3))
+plot((train$AVGFACSAL)^0.5, (train$ADM_RATE)^1.39)
+plot((train$PFTFAC)^0.85, (train$ADM_RATE)^1.39)
+plot((train$UG25ABV)^0.33, (train$ADM_RATE)^1.39)
+plot((train$INC_PCT_LO)^0.5, (train$ADM_RATE)^1.39)
+plot((train$PCT_BLACK)^0.33, (train$ADM_RATE)^1.39)
+plot((train$PCT_HISPANIC^0.1), (train$ADM_RATE)^1.39)
+plot((train$ADM_RATE)^1.39~fitted(model2), xlab="Fitted values", ylab="ADM_RATE^1.39")+
+  abline(a=0,b=1, col = 'red')
+```
+##Mddel validation
+```{r}
+pred = predict(model2, newdata = test, type = 'response')
+mean((test$ADM_RATE-pred)^2)
+```
+##ANOVA TEST FOR FACULTY SALARY VARIABLE
+```{r}
+model5 = lm(formula = I(ADM_RATE^1.39) ~ CONTROL + HSI + 
+    I(PFTFAC^0.85) + I(UG25ABV^0.33) + I(INC_PCT_LO^0.5) + I(PCT_BLACK^0.33) + 
+    I(PCT_HISPANIC^0.1), data = train)
+anova(model5,model2)
+summary(model1)
+summary(model2)
+```
+
